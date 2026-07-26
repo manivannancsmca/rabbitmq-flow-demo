@@ -23,6 +23,8 @@ public class OrderMessageConsumer {
 
     private final OrderProcessingService orderProcessingService;
 
+    // 1. Primary Consumer (uses default rabbitListenerContainerFactory with 3
+    // retries)
     @RabbitListener(queues = "${app.rabbitmq.queue}")
     public void consumeOrderMessage(
             OrderMessageDto payload,
@@ -36,32 +38,25 @@ public class OrderMessageConsumer {
         try {
             log.info("Consumed message. Event ID: {}, Order ID: {}", payload.eventId(), payload.orderId());
             orderProcessingService.processOrder(payload);
-        } catch (InvalidMessageException e) {
-            log.error("Validation error during processing: {}. Message sent to DLQ automatically.", e.getMessage());
-            // Rethrowing causes the configured retry engine to attempt retries.
-            // When attempts are exhausted, the message lands in DLQ.
-            throw e;
-        } catch (Exception e) {
-            log.error("System error processing message: {}", e.getMessage(), e);
-            throw e;
         } finally {
             MDC.remove("correlationId");
         }
     }
 
-    // Monitoring listener attached to the Dead Letter Queue
-    @RabbitListener(queues = "${app.rabbitmq.dlq-queue}")
+    // 2. Dead Letter Queue Listener (uses isolated dlqContainerFactory — NO retry
+    // loop)
+    @RabbitListener(queues = "${app.rabbitmq.dlq-queue}", containerFactory = "dlqContainerFactory")
     public void consumeDeadLetterMessage(Message failedMessage) {
-        Map<String, Object> headers = failedMessage.getMessageProperties().getHeaders();
-        log.error("DLQ Consumer Alert: Message landed in Dead Letter Queue! Content: {}", 
-                new String(failedMessage.getBody()));
+        try {
+            log.error("DLQ Alert: Failed message caught! Content: {}", new String(failedMessage.getBody()));
 
-        if (headers.containsKey("x-death")) {
-            List<Map<String, Object>> xDeath = (List<Map<String, Object>>) headers.get("x-death");
-            if (!xDeath.isEmpty()) {
-                Map<String, Object> deathInfo = xDeath.get(0);
-                log.error("DLQ Reason: {}, Route count: {}", deathInfo.get("reason"), deathInfo.get("count"));
+            Map<String, Object> headers = failedMessage.getMessageProperties().getHeaders();
+            if (headers.containsKey("x-death")) {
+                log.error("DLQ x-death headers: {}", headers.get("x-death"));
             }
+        } catch (Exception e) {
+            // Log cleanly — do NOT throw exceptions inside DLQ handlers
+            log.error("Error inside DLQ consumer execution: {}", e.getMessage());
         }
     }
 }

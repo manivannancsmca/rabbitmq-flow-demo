@@ -12,6 +12,6 @@ public record OrderMessageDto(
     String orderId,
 
     @NotNull(message = "Amount is required")
-    @Positive(message = "Amount must be strictly positive")
+    //@Positive(message = "Amount must be strictly positive")
     Double amount
 ) {}
