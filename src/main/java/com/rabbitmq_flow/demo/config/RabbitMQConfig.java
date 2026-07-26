@@ -7,6 +7,7 @@ import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFacto
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.rabbit.retry.RejectAndDontRequeueRecoverer;
+import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -83,9 +84,21 @@ public class RabbitMQConfig {
 
     // 3. Jackson JSON Message Converter
     @Bean
-    public Jackson2JsonMessageConverter jackson2JsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
-    }
+public Jackson2JsonMessageConverter jackson2JsonMessageConverter() {
+    Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+    
+    // Create a type mapper to configure trusted packages
+    DefaultClassMapper classMapper = new DefaultClassMapper();
+    
+    // Option 1 (Recommended): Trust your application's package
+    classMapper.setTrustedPackages("com.rabbitmq_flow.demo.*", "com.rabbitmq_flow.demo.dto");
+    
+    // Option 2 (Alternative for dev): Trust all packages
+    // classMapper.setTrustedPackages("*");
+    
+    converter.setClassMapper(classMapper);
+    return converter;
+}
 
     // 4. Primary Container Factory (3 Retries -> Reject without requeue -> Native DLX)
     @Bean(name = "rabbitListenerContainerFactory")
