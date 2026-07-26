@@ -3,6 +3,7 @@ package com.rabbitmq_flow.demo.service;
 import org.springframework.stereotype.Service;
 
 import com.rabbitmq_flow.demo.dto.OrderMessageDto;
+import com.rabbitmq_flow.demo.exception.InvalidMessageException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

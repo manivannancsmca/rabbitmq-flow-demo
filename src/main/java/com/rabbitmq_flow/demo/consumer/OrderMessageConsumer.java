@@ -10,6 +10,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import com.rabbitmq_flow.demo.dto.OrderMessageDto;
+import com.rabbitmq_flow.demo.exception.InvalidMessageException;
 import com.rabbitmq_flow.demo.service.OrderProcessingService;
 
 import lombok.RequiredArgsConstructor;
