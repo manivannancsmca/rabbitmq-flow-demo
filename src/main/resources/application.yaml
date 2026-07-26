@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rabbitmq-demo
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    virtual-host: /
+    
+    # Publisher Confirms and Returns
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    
+    template:
+      mandatory: true # Ensures unroutable messages are returned
+      retry:
+        enabled: true
+        initial-interval: 1000ms
+        max-attempts: 3
+        multiplier: 2.0
+        
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 3
+        max-concurrency: 10
+        prefetch: 10
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+          multiplier: 2.0
+          max-interval: 10000ms
+
+app:
+  rabbitmq:
+    exchange: orders.direct.exchange
+    queue: orders.process.queue
+    routing-key: orders.process.key
+    dlx-exchange: orders.dlx.exchange
+    dlq-queue: orders.dlq.queue
+    dlq-routing-key: orders.dlq.key
+    ttl-ms: 86400000 # 24 Hours Message TTL
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{correlationId}]"
