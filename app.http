@@ -1,0 +1,91 @@
+### Variables
+@baseUrl = http://localhost:8080/api/v1/orders
+@contentType = application/json
+
+### 1. Success Scenario - Standard Valid Order Request
+# Expect: 202 Accepted.
+# Verification: Check console logs for Publisher Confirm and successful consumer processing.
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+X-Correlation-ID: req-uuid-0001-test
+
+{
+  "eventId": "evt_1001",
+  "orderId": "ord_9901",
+  "amount": 149.99
+}
+
+###
+
+### 2. Idempotency Scenario - Duplicate Message Test
+# Expect: 202 Accepted by HTTP controller.
+# Verification: Consumer will recognize "evt_1001" as already processed and skip processing.
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+X-Correlation-ID: req-uuid-0002-test
+
+{
+  "eventId": "evt_1001",
+  "orderId": "ord_9901",
+  "amount": 149.99
+}
+
+###
+
+### 3. Business Exception / Retry & DLQ Routing Scenario
+# Expect: 202 Accepted initially by HTTP endpoint.
+# Verification:
+#   1. Consumer will fail due to negative amount.
+#   2. Spring AMQP will retry 3 times with exponential backoff (1s, 2s, 4s).
+#   3. Message will be routed to Dead Letter Queue (orders.dlq.queue).
+#   4. DLQ listener will log the dead-letter alert and x-death reasons.
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+X-Correlation-ID: req-uuid-0003-test
+
+{
+  "eventId": "evt_1002",
+  "orderId": "ord_9902",
+  "amount": -50.00
+}
+
+###
+
+### 4. Controller-Level Validation Error (Missing Event ID)
+# Expect: 400 Bad Request returned directly by @RestControllerAdvice.
+# Message will NOT be published to RabbitMQ.
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+
+{
+  "eventId": "",
+  "orderId": "ord_9903",
+  "amount": 299.50
+}
+
+###
+
+### 5. Controller-Level Validation Error (Null Amount)
+# Expect: 400 Bad Request returned directly by @RestControllerAdvice.
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+
+{
+  "eventId": "evt_1003",
+  "orderId": "ord_9904",
+  "amount": null
+}
+
+###
+
+### 6. High-Value Valid Order Test
+# Useful for testing concurrent consumers in parallel
+POST {{baseUrl}}
+Content-Type: {{contentType}}
+X-Correlation-ID: req-uuid-0004-test
+
+{
+  "eventId": "evt_1004",
+  "orderId": "ord_9905",
+  "amount": 1250.00
+}
